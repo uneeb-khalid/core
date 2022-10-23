@@ -1,0 +1,32 @@
+version: "3"
+services:
+  gibbon:
+    image: gibbon_v25
+    container_name: gibbon
+    #network_mode: host
+    volumes:
+      - my-gibbon:/var/www/site/
+    ports:
+      - 8081:80
+    restart: no
+    # restart: always
+
+  db:
+    image: mysql:5.7
+    container_name: mysql_gibbon
+    restart: no
+    environment:
+      MYSQL_DATABASE: gibbon_db
+      MYSQL_USER: gibbon_user
+      MYSQL_PASSWORD: CTkMCap3BR
+      MYSQL_ROOT_PASSWORD: iZK7T0kPPb
+    ports:
+      - '3306:3306'
+    expose:
+      - '3306'
+    volumes:
+      - my-db:/var/lib/mysql
+
+volumes:
+  my-db:
+  my-gibbon:
