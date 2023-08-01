@@ -22,8 +22,10 @@ namespace Gibbon\Module\Messenger;
 use Gibbon\Services\Format;
 use Gibbon\Contracts\Services\Session;
 use Gibbon\Contracts\Database\Connection;
+use Gibbon\Data\PasswordPolicy;
 use Gibbon\Domain\System\SettingGateway;
 use Gibbon\Domain\System\LogGateway;
+use Gibbon\Domain\User\RoleGateway;
 
 /**
  * MessageTargets
@@ -35,12 +37,26 @@ class MessageTargets
 {
     protected $report;
 
-    public function __construct(Session $session, Connection $db, SettingGateway $settingGateway, LogGateway $logGateway)
+    /**
+     * Role gateway
+     *
+     * @var RoleGateway
+     */
+    protected $roleGateway;
+
+    public function __construct(
+        Session $session,
+        Connection $db,
+        SettingGateway $settingGateway,
+        LogGateway $logGateway,
+        RoleGateway $roleGateway
+    )
     {
         $this->session = $session;
         $this->db = $db;
         $this->settingGateway = $settingGateway;
         $this->logGateway = $logGateway;
+        $this->roleGateway = $roleGateway;
     }
 
     public function createMessageTargets($gibbonMessengerID, &$partialFail = false)
@@ -399,7 +415,7 @@ class MessageTargets
                         }
 
                         //Get email addresses
-                        $category=getRoleCategory($t, $connection2) ;
+                        $category = $this->roleGateway->getRoleCategory($t);
                         $gibbonRoleID = str_pad(intval($t), 3, '0', STR_PAD_LEFT);
                         if ($email=="Y") {
                             if ($category=="Parent") {
@@ -491,7 +507,7 @@ class MessageTargets
                             if ($t=="Parent") {
                                 try {
                                     $dataEmail=array("category"=>$t);
-                                    $sqlEmail="SELECT DISTINCT email, gibbonPerson.gibbonPersonID FROM gibbonPerson JOIN gibbonFamilyAdult ON (gibbonFamilyAdult.gibbonPersonID=gibbonPerson.gibbonPersonID) JOIN gibbonRole ON (FIND_IN_SET(gibbonRole.gibbonRoleID, gibbonPerson.gibbonRoleIDAll)) WHERE NOT email='' AND category=:category AND status='Full' AND contactEmail='Y'" ;
+                                    $sqlEmail="SELECT DISTINCT email, gibbonPerson.gibbonPersonID FROM gibbonPerson JOIN gibbonFamilyAdult ON (gibbonFamilyAdult.gibbonPersonID=gibbonPerson.gibbonPersonID) JOIN gibbonRole ON (FIND_IN_SET(gibbonRole.gibbonRoleID, gibbonPerson.gibbonRoleIDAll)) WHERE NOT email='' AND category=:category AND status='Full' AND contactEmail='Y' AND (dateStart IS NULL OR dateStart<=CURRENT_DATE) AND (dateEnd IS NULL OR dateEnd>=CURRENT_DATE)" ;
                                     $resultEmail=$connection2->prepare($sqlEmail);
                                     $resultEmail->execute($dataEmail);
                                 }
@@ -2218,6 +2234,10 @@ class MessageTargets
             $count = 0;
             $unique = true;
             $uniqueCount = 0;
+
+            // Use password policy to generate random string
+            $randStrGenerator = new PasswordPolicy(true, true, false, 40);
+
             foreach ($this->report as $reportEntry) {
                 if ($reportEntry[4] == $contactDetail && $unique) {
                     $unique = false;
@@ -2225,7 +2245,7 @@ class MessageTargets
                 }
                 $count ++;
             }
-    
+
             if ($unique) { //Entry is unique, so create
                 $count = count($this->report);
                 $this->report[$count][0] = $gibbonPersonID;
@@ -2234,7 +2254,7 @@ class MessageTargets
                 $this->report[$count][3] = $contactType;
                 $this->report[$count][4] = $contactDetail;
                 if ($contactType == 'Email' and $emailReceipt == 'Y') {
-                    $this->report[$count][5] = randomPassword(40);
+                    $this->report[$count][5] = $randStrGenerator->generate();
                 }
                 else {
                     $this->report[$count][5] = null;
@@ -2244,7 +2264,7 @@ class MessageTargets
             }
             else { //Entry is not unique, so apend student details
                 $this->report[$uniqueCount][6] = (empty($this->report[$uniqueCount][6])) ? $gibbonPersonIDListStudent : (!empty($gibbonPersonIDListStudent) ? $this->report[$uniqueCount][6].','.$gibbonPersonIDListStudent : $this->report[$uniqueCount][6]);
-    
+
                 if (empty($this->report[$uniqueCount][7])) {
                     $this->report[$uniqueCount][7] = [$nameStudent];
                 } else {

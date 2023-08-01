@@ -162,9 +162,9 @@ class FormFactory implements FormFactoryInterface
         return new Input\Finder($name);
     }
 
-    public function createEditor($name, $guid)
+    public function createEditor(string $name)
     {
-        return new Input\Editor($name, $guid);
+        return new Input\Editor($name);
     }
 
     public function createCodeEditor($name)
@@ -506,11 +506,13 @@ class FormFactory implements FormFactoryInterface
                 'TTD $' => 'Trinidad & Tobago Dollar (TTD)',
                 'TRY ₺' => 'Turkish Lira (₺)',
                 'UAH ₴' => 'Українська гривня (₴)',
+                'UGX USh' => 'Uganda Shilling (USh)',
                 'AED د.إ' => 'United Arab Emirates Dirham (د.إ)',
                 'VND ₫‎' => 'Vietnamese Dong (₫‎)',
                 'XCD $' => 'Eastern Caribbean Dollars ($)',
                 'XOF FCFA' => 'West African Francs (FCFA)',
                 'ZMW ZK' => 'Zambian Kwacha (ZMW)',
+                'ZWL $' => 'Zimbabwean Dollar (ZWL $)',
             ),
         );
 

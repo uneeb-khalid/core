@@ -699,4 +699,39 @@ ALTER TABLE `gibbonMessengerReceipt` ADD `nameListStudent` TEXT NULL AFTER `gibb
 UPDATE `gibbonMessengerReceipt` SET sent='Y';end
 UPDATE `gibbonAction` SET URLList='messenger_manage.php,messenger_manage_delete.php,messenger_manage_edit.php,messenger_manage_report.php,messenger_send.php' WHERE name LIKE 'Manage Messages_%' AND gibbonModuleID=(SELECT gibbonModuleID FROM gibbonModule WHERE name='Messenger');end
 ALTER TABLE gibbonMarkbookColumn MODIFY name VARCHAR(40);end
+ALTER TABLE `gibbonTTSpaceBooking` ADD `reason` VARCHAR(255) NOT NULL AFTER `timeEnd`;end
+UPDATE `gibbonAction` SET `URLList` = 'tt.php, tt_add.php, tt_edit.php, tt_delete.php, tt_import.php, tt_edit_day_add.php, tt_edit_day_edit.php, tt_edit_day_delete.php, tt_edit_day_edit_class.php, tt_edit_day_edit_class_delete.php, tt_edit_day_edit_class_add.php, tt_edit_day_edit_class_edit.php, tt_edit_day_edit_class_exception.php, tt_edit_day_edit_class_exception_add.php, tt_edit_day_edit_class_exception_delete.php,tt_edit_byClass.php' WHERE name='Manage Timetables' AND gibbonModuleID=(SELECT gibbonModuleID FROM gibbonModule WHERE name='Timetable Admin');end
+ALTER TABLE `gibbonAttendanceLogPerson` ADD `gibbonTTDayRowClassID` INT(12) UNSIGNED ZEROFILL NULL AFTER `gibbonCourseClassID`;end
+ALTER TABLE `gibbonAttendanceLogCourseClass` ADD `gibbonTTDayRowClassID` INT(12) UNSIGNED ZEROFILL NULL AFTER `gibbonCourseClassID`;end
+INSERT IGNORE INTO `gibboni18n` (`code`, `name`, `version`, `active`, `installed`, `systemDefault`, `dateFormat`, `dateFormatRegEx`, `dateFormatPHP`, `rtl`) VALUES ('lt_LT', 'Lietuvių Kalba - Lithuanian', '25.0.00', 'Y', 'N', 'N', 'yyyy.mm.dd', '/^[0-9]{4}.(0[1-9]|1[0-2]).(0[1-9]|[1-2][0-9]|3[0-1])$/', 'Y.m.d', 'N');end
+ALTER TABLE `gibbonFormField` ADD `defaultValue` VARCHAR(255) NULL DEFAULT NULL AFTER `conditional`;end
+ALTER TABLE `gibbonDepartment` ADD `fields` TEXT NULL AFTER `sequenceNumber`;end
+ALTER TABLE `gibbonStudentEnrolment` ADD `fields` TEXT NULL AFTER `rollOrder`;end
+CREATE TABLE `gibbonStaffDuty` ( `gibbonStaffDutyID` INT(6) UNSIGNED ZEROFILL NOT NULL AUTO_INCREMENT , `gibbonDaysOfWeekIDList` VARCHAR(30) NULL, `name` VARCHAR(90) NOT NULL , `timeStart` TIME NOT NULL , `timeEnd` TIME NOT NULL , `sequenceNumber` INT(6) NOT NULL , PRIMARY KEY (`gibbonStaffDutyID`)) ENGINE = InnoDB CHARSET=utf8 COLLATE utf8_general_ci;end
+CREATE TABLE `gibbonStaffDutyPerson` ( `gibbonStaffDutyPersonID` INT(10) UNSIGNED ZEROFILL NOT NULL AUTO_INCREMENT , `gibbonStaffDutyID` INT(10) UNSIGNED ZEROFILL NOT NULL, `gibbonDaysOfWeekID` INT(2) UNSIGNED ZEROFILL NOT NULL , `gibbonPersonID` INT(10) UNSIGNED ZEROFILL NOT NULL, PRIMARY KEY (`gibbonStaffDutyPersonID`), UNIQUE KEY (`gibbonStaffDutyID`, `gibbonDaysOfWeekID`, `gibbonPersonID`) ) ENGINE = InnoDB CHARSET=utf8 COLLATE utf8_general_ci;end
+INSERT INTO `gibbonAction` (`gibbonModuleID`, `name`, `precedence`, `category`, `description`, `URLList`, `entryURL`, `entrySidebar`, `menuShow`, `defaultPermissionAdmin`, `defaultPermissionTeacher`, `defaultPermissionStudent`, `defaultPermissionParent`, `defaultPermissionSupport`, `categoryPermissionStaff`, `categoryPermissionStudent`, `categoryPermissionParent`, `categoryPermissionOther`) VALUES((SELECT gibbonModuleID FROM gibbonModule WHERE name='Staff'), 'Duty Schedule_edit', 0, 'Reports', 'Manage the staff duty schedule.', 'staff_duty.php,staff_duty_edit.php', 'staff_duty.php', 'Y', 'Y', 'Y', 'N', 'N', 'N', 'N', 'Y', 'N', 'N', 'N');end
+INSERT INTO `gibbonPermission` (`gibbonRoleID` ,`gibbonActionID`) VALUES ('001', (SELECT gibbonActionID FROM gibbonAction JOIN gibbonModule ON (gibbonAction.gibbonModuleID=gibbonModule.gibbonModuleID) WHERE gibbonModule.name='Staff' AND gibbonAction.name='Duty Schedule_edit'));end
+INSERT INTO `gibbonAction` (`gibbonModuleID`, `name`, `precedence`, `category`, `description`, `URLList`, `entryURL`, `entrySidebar`, `menuShow`, `defaultPermissionAdmin`, `defaultPermissionTeacher`, `defaultPermissionStudent`, `defaultPermissionParent`, `defaultPermissionSupport`, `categoryPermissionStaff`, `categoryPermissionStudent`, `categoryPermissionParent`, `categoryPermissionOther`) VALUES((SELECT gibbonModuleID FROM gibbonModule WHERE name='Staff'), 'Duty Schedule_view', 0, 'Reports', 'View the staff duty schedule.', 'staff_duty.php', 'staff_duty.php', 'Y', 'Y', 'Y', 'N', 'N', 'N', 'N', 'Y', 'N', 'N', 'N');end
+INSERT INTO `gibbonPermission` (`gibbonRoleID` ,`gibbonActionID`) VALUES ('001', (SELECT gibbonActionID FROM gibbonAction JOIN gibbonModule ON (gibbonAction.gibbonModuleID=gibbonModule.gibbonModuleID) WHERE gibbonModule.name='Staff' AND gibbonAction.name='Duty Schedule_view'));end
+INSERT INTO `gibbonPermission` (`gibbonRoleID` ,`gibbonActionID`) VALUES ('002', (SELECT gibbonActionID FROM gibbonAction JOIN gibbonModule ON (gibbonAction.gibbonModuleID=gibbonModule.gibbonModuleID) WHERE gibbonModule.name='Staff' AND gibbonAction.name='Duty Schedule_view'));end
+ALTER TABLE `gibbonStaffCoverageDate` ADD `gibbonTTDayRowClassID` INT(12) UNSIGNED ZEROFILL NULL AFTER `gibbonStaffAbsenceDateID`;end
+INSERT INTO `gibbonSetting` (`scope`, `name`, `nameDisplay`, `description`, `value`) VALUES ('Staff', 'coverageMode', 'Coverage Mode', 'Should teachers send coverage requests directly to substitutes, or will it be assigned for them?', 'Requested');end
+INSERT INTO `gibbonSetting` (`scope`, `name`, `nameDisplay`, `description`, `value`) VALUES ('Staff', 'coverageInternal', 'Internal Coverage', 'If Yes, teachers can be assigned to cover each other. Otherwise, only users added through Manage Substitutes will be available for coverage.', 'N');end
+ALTER TABLE `gibbonStaffCoverage` CHANGE `status` `status` ENUM('Requested','Accepted','Declined','Cancelled','Pending') NULL DEFAULT 'Requested';end
+INSERT INTO `gibbonAction` (`gibbonModuleID`, `name`, `precedence`, `category`, `description`, `URLList`, `entryURL`, `entrySidebar`, `menuShow`, `defaultPermissionAdmin`, `defaultPermissionTeacher`, `defaultPermissionStudent`, `defaultPermissionParent`, `defaultPermissionSupport`, `categoryPermissionStaff`, `categoryPermissionStudent`, `categoryPermissionParent`, `categoryPermissionOther`) VALUES((SELECT gibbonModuleID FROM gibbonModule WHERE name='Staff'), 'Daily Coverage Planner', 0, 'Coverage', '', 'coverage_planner.php,coverage_planner_assign.php,coverage_planner_unassign.php', 'coverage_planner.php', 'Y', 'Y', 'Y', 'N', 'N', 'N', 'N', 'Y', 'N', 'N', 'N');end
+INSERT INTO `gibbonPermission` (`gibbonRoleID` ,`gibbonActionID`) VALUES ('001', (SELECT gibbonActionID FROM gibbonAction JOIN gibbonModule ON (gibbonAction.gibbonModuleID=gibbonModule.gibbonModuleID) WHERE gibbonModule.name='Staff' AND gibbonAction.name='Daily Coverage Planner'));end
+ALTER TABLE `gibbonStaffCoverageDate` ADD `foreignTable` VARCHAR(60) NULL AFTER `gibbonStaffAbsenceDateID`;end
+ALTER TABLE `gibbonStaffCoverageDate` CHANGE `gibbonTTDayRowClassID` `foreignTableID` INT(12) UNSIGNED ZEROFILL NULL DEFAULT NULL;end
+ALTER TABLE `gibbonStaffCoverageDate` ADD INDEX(`foreignTable`, `foreignTableID`);end
+ALTER TABLE `gibbonActivityStaff` ADD INDEX(`gibbonActivityID`, `gibbonPersonID`);end
+UPDATE `gibbonNotificationEvent` SET moduleName='Admissions' WHERE moduleName='Students' AND event='New Application Form';end
+UPDATE `gibbonNotificationEvent` SET moduleName='Admissions' WHERE moduleName='Students' AND event='New Application with SEN/Medical';end
+UPDATE `gibbonNotificationEvent` SET moduleName='Admissions' WHERE moduleName='Students' AND event='Application Form Accepted';end
+UPDATE `gibbonNotificationEvent` SET moduleName='Admissions' WHERE moduleName='Students' AND event='Student Withdrawn';end
+
 ";
+
+//v24.0.01
+++$count;
+$sql[$count][0] = '24.0.01';
+$sql[$count][1] = "";

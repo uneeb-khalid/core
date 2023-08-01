@@ -19,15 +19,18 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 namespace Gibbon\UI\Dashboard;
 
-use Gibbon\Contracts\Database\Connection;
-use Gibbon\Contracts\Services\Session;
-use Gibbon\Domain\System\SettingGateway;
-use Gibbon\Forms\OutputableInterface;
 use Gibbon\Http\Url;
 use Gibbon\Services\Format;
+use Gibbon\Data\Validator;
+use Gibbon\Forms\OutputableInterface;
+use Gibbon\Domain\System\SettingGateway;
+use Gibbon\Contracts\Database\Connection;
+use Gibbon\Contracts\Services\Session;
 use Gibbon\Tables\Prefab\EnrolmentTable;
 use Gibbon\Tables\Prefab\FormGroupTable;
-use Gibbon\Data\Validator;
+use League\Container\ContainerAwareTrait;
+use League\Container\ContainerAwareInterface;
+use Gibbon\Domain\System\HookGateway;
 
 /**
  * Staff Dashboard View Composer
@@ -35,8 +38,10 @@ use Gibbon\Data\Validator;
  * @version  v18
  * @since    v18
  */
-class StaffDashboard implements OutputableInterface
+class StaffDashboard implements OutputableInterface, ContainerAwareInterface
 {
+    use ContainerAwareTrait;
+
     /**
      * @var \Gibbon\Contracts\Database\Connection
      */
@@ -121,7 +126,7 @@ class StaffDashboard implements OutputableInterface
             LEFT JOIN gibbonPlannerEntryStudentHomework ON (gibbonPlannerEntryStudentHomework.gibbonPlannerEntryID=gibbonPlannerEntry.gibbonPlannerEntryID AND gibbonPlannerEntryStudentHomework.gibbonPersonID=gibbonCourseClassPerson.gibbonPersonID)
 
             LEFT JOIN (
-                SELECT gibbonTTDayRowClass.gibbonCourseClassID, gibbonTTDayRowClass.gibbonTTDayRowClassID, gibbonTTColumnRow.timeStart, gibbonTTColumnRow.timeEnd FROM gibbonTTDayDate JOIN gibbonTTDayRowClass ON (gibbonTTDayDate.gibbonTTDayID=gibbonTTDayRowClass.gibbonTTDayID) JOIN gibbonTTColumnRow ON (gibbonTTColumnRow.gibbonTTColumnRowID=gibbonTTDayRowClass.gibbonTTColumnRowID) WHERE gibbonTTDayDate.date=:date) 
+                SELECT gibbonTTDayRowClass.gibbonCourseClassID, gibbonTTDayRowClass.gibbonTTDayRowClassID, gibbonTTColumnRow.timeStart, gibbonTTColumnRow.timeEnd FROM gibbonTTDayDate JOIN gibbonTTDayRowClass ON (gibbonTTDayDate.gibbonTTDayID=gibbonTTDayRowClass.gibbonTTDayID) JOIN gibbonTTColumnRow ON (gibbonTTColumnRow.gibbonTTColumnRowID=gibbonTTDayRowClass.gibbonTTColumnRowID) WHERE gibbonTTDayDate.date=:date)
                 AS gibbonTTDayRowClassSubset ON (gibbonTTDayRowClassSubset.gibbonCourseClassID=gibbonCourseClassPerson.gibbonCourseClassID AND gibbonTTDayRowClassSubset.timeStart=gibbonPlannerEntry.timeStart AND gibbonTTDayRowClassSubset.timeEnd=gibbonPlannerEntry.timeEnd)
             LEFT JOIN gibbonTTDayRowClassException ON (gibbonTTDayRowClassException.gibbonTTDayRowClassID=gibbonTTDayRowClassSubset.gibbonTTDayRowClassID AND gibbonTTDayRowClassException.gibbonPersonID=gibbonCourseClassPerson.gibbonPersonID)
 
@@ -247,7 +252,10 @@ class StaffDashboard implements OutputableInterface
 
         //GET TIMETABLE
         $timetable = false;
-        if (isActionAccessible($guid, $connection2, '/modules/Timetable/tt.php') and $this->session->get('username') != '' and getRoleCategory($this->session->get('gibbonRoleIDCurrent'), $connection2) == 'Staff') {
+        if (
+            isActionAccessible($guid, $connection2, '/modules/Timetable/tt.php') and $this->session->get('username') != ''
+            && $this->session->get('gibbonRoleIDCurrentCategory') == 'Staff'
+        ) {
             $apiEndpoint = (string)Url::fromHandlerRoute('index_tt_ajax.php');
             $_POST = (new Validator(''))->sanitize($_POST);
             $jsonQuery = [
@@ -443,31 +451,8 @@ class StaffDashboard implements OutputableInterface
             ++$formGroupCount;
         }
 
-        //GET HOOKS INTO DASHBOARD
-        $hooks = array();
-
-        $dataHooks = array();
-        $sqlHooks = "SELECT * FROM gibbonHook WHERE type='Staff Dashboard'";
-        $resultHooks = $connection2->prepare($sqlHooks);
-        $resultHooks->execute($dataHooks);
-        if ($resultHooks->rowCount() > 0) {
-            $count = 0;
-            while ($rowHooks = $resultHooks->fetch()) {
-                $options = unserialize($rowHooks['options']);
-                //Check for permission to hook
-                $dataHook = array('gibbonRoleIDCurrent' => $this->session->get('gibbonRoleIDCurrent'), 'sourceModuleName' => $options['sourceModuleName'], 'sourceModuleAction' => $options['sourceModuleAction']);
-                $sqlHook = "SELECT gibbonHook.name, gibbonModule.name AS module, gibbonAction.name AS action FROM gibbonHook JOIN gibbonModule ON (gibbonHook.gibbonModuleID=gibbonModule.gibbonModuleID) JOIN gibbonAction ON (gibbonAction.gibbonModuleID=gibbonModule.gibbonModuleID) JOIN gibbonPermission ON (gibbonPermission.gibbonActionID=gibbonAction.gibbonActionID) WHERE gibbonAction.gibbonModuleID=(SELECT gibbonModuleID FROM gibbonModule WHERE gibbonPermission.gibbonRoleID=:gibbonRoleIDCurrent AND name=:sourceModuleName) AND gibbonHook.type='Staff Dashboard'  AND gibbonAction.name=:sourceModuleAction AND gibbonModule.name=:sourceModuleName ORDER BY name";
-                $resultHook = $connection2->prepare($sqlHook);
-                $resultHook->execute($dataHook);
-                if ($resultHook->rowCount() == 1) {
-                    $rowHook = $resultHook->fetch();
-                    $hooks[$count]['name'] = $rowHooks['name'];
-                    $hooks[$count]['sourceModuleName'] = $rowHook['module'];
-                    $hooks[$count]['sourceModuleInclude'] = $options['sourceModuleInclude'];
-                    ++$count;
-                }
-            }
-        }
+        // GET HOOKS INTO DASHBOARD
+        $hooks = $this->getContainer()->get(HookGateway::class)->getAccessibleHooksByType('Staff Dashboard', $this->session->get('gibbonRoleIDCurrent'));
 
         if ($planner == false and $timetable == false and count($hooks) < 1) {
             $return .= "<div class='warning'>";
@@ -497,7 +482,7 @@ class StaffDashboard implements OutputableInterface
                 }
             }
 
-            if (isActionAccessible($guid, $connection2, '/modules/Students/student_view.php')) {
+            if (isActionAccessible($guid, $connection2, '/modules/Admissions/report_students_left.php') || isActionAccessible($guid, $connection2, '/modules/Admissions/report_students_new.php')) {
                 $return .= "<li><a href='#tabs".$tabCount."'>".__('Enrolment').'</a></li>';
                 if ($staffDashboardDefaultTab == 'Enrolment') {
                     $staffDashboardDefaultTabCount = $tabCount;

@@ -27,15 +27,11 @@ use Gibbon\Domain\School\YearGroupGateway;
 use Gibbon\Domain\Students\StudentGateway;
 use Gibbon\Domain\FormGroups\FormGroupGateway;
 use Gibbon\Domain\Attendance\AttendanceLogPersonGateway;
+use Gibbon\Domain\School\SchoolYearGateway;
 
 $_POST['address'] = '/modules/School Admin/emailSummarySettings.php';
 
 require __DIR__.'/../gibbon.php';
-
-// Setup some of the globals
-getSystemSettings($guid, $connection2);
-setCurrentSchoolYear($guid, $connection2);
-Format::setupFromSession($container->get('session'));
 
 //Check for CLI, so this cannot be run through browser
 $remoteCLIKey = $container->get(SettingGateway::class)->getSettingByScope('System Admin', 'remoteCLIKey');

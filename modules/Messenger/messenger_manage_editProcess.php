@@ -65,6 +65,13 @@ if (isActionAccessible($guid, $connection2, "/modules/Messenger/messenger_manage
     $messengerReceiptGateway = $container->get(MessengerReceiptGateway::class);
     $messageTargets = $container->get(MessageTargets::class);
 
+    $values = $messengerGateway->getByID($gibbonMessengerID);
+    if (empty($values)) {
+        $URL.="&return=error2";
+        header("Location: {$URL}");
+        exit;
+    }
+
     $saveMode = $_POST['saveMode'] ?? 'Preview';
     $status = $_POST['status'] ?? 'Draft';
     $data = [
@@ -88,12 +95,15 @@ if (isActionAccessible($guid, $connection2, "/modules/Messenger/messenger_manage
             'emailReceipt'     => $_POST['emailReceipt'] ?? 'N',
             'emailReceiptText' => $_POST['emailReceiptText'] ?? '',
         ];
+    } else {
+        $data['email'] = $values['email'];
+        $data['emailReceipt'] = $values['emailReceipt'];
     }
 
     $data['messageWallPin'] = ($data['messageWall'] == 'Y' && isActionAccessible($guid, $connection2, '/modules/Messenger/messenger_manage.php', 'Manage Messages_all')) ? $data['messageWallPin'] : 'N';
 
     // Validate that the required values are present
-    if (empty($data['subject']) || empty($data['body']) || ($data['email'] == 'Y' && $data['emailFrom'] == '') || ($data['emailReceipt'] == 'Y' && $data['emailReceiptText'] == '')) {
+    if (empty($data['subject']) || empty($data['body']) || ($status == 'Draft' && $data['email'] == 'Y' && $data['emailFrom'] == '') || ($data['emailReceipt'] == 'Y' && $data['emailReceiptText'] == '')) {
         $URL.="&return=error3";
         header("Location: {$URL}");
         exit;
@@ -118,12 +128,10 @@ if (isActionAccessible($guid, $connection2, "/modules/Messenger/messenger_manage
 
     $partialFail = false;
 
-    // Remove existing targets before adding new ones
-    $messengerTargetGateway->deleteWhere(['gibbonMessengerID' => $gibbonMessengerID]);
-
     // Go to preview page?
-    if ($saveMode == 'Preview') {
+    if ($saveMode == 'Preview' && $status == 'Draft' && ($data['email'] == 'Y' || $data['sms'] == 'Y')) {
         // Clear existing recipients, then add new ones
+        $messengerTargetGateway->deleteWhere(['gibbonMessengerID' => $gibbonMessengerID]);
         $messengerReceiptGateway->deleteWhere(['gibbonMessengerID' => $gibbonMessengerID]);
         $recipients = $messageTargets->createMessageRecipientsFromTargets($gibbonMessengerID, $data, $partialFail);
 
@@ -135,9 +143,12 @@ if (isActionAccessible($guid, $connection2, "/modules/Messenger/messenger_manage
 
         header("Location: {$URLSend}");
         exit;
+    } elseif ($saveMode == 'Preview' && $data['messageWall'] == 'Y') {
+        $messengerGateway->update($gibbonMessengerID, ['status' => 'Sent']);
     }
 
-    // Otherwise save any edits by creating new targets
+    // Remove existing targets, then save any edits by creating new targets
+    $messengerTargetGateway->deleteWhere(['gibbonMessengerID' => $gibbonMessengerID]);
     $messageTargets->createMessageTargets($gibbonMessengerID, $partialFail);
 
     $URL .= $partialFail
